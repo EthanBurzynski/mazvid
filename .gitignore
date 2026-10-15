@@ -1,0 +1,11 @@
+# 130MB each, over GitHub's 100MB file limit; see README for where to get them
+ffmpeg.exe
+ffprobe.exe
+ffmpeg
+ffprobe
+
+.venv/
+build/
+dist/
+temp/
+__pycache__/
