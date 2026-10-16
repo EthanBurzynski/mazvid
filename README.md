@@ -4,7 +4,7 @@ Compress, trim, mute or mp3-ify videos so they fit on Discord.
 
 ## Windows
 
-Download `mazvid.exe` and run it. ffmpeg is built in, nothing else to install.
+Download `mazvid.exe` from the [latest release](https://github.com/EthanBurzynski/mazvid/releases/latest) and run it. ffmpeg is built in, nothing else to install.
 
 ## Linux
 
