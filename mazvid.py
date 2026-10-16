@@ -54,14 +54,17 @@ def grab_frame(path, t, width=260):
 
 def run_ffmpeg(args, duration, on_progress=lambda f: None):
     p = subprocess.Popen([FFMPEG, "-y", "-v", "error", "-nostats", "-progress", "pipe:1", *args],
-                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NO_WINDOW)
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=NO_WINDOW)
+    # stderr shares the stdout pipe: a separate, unread stderr pipe can fill up and freeze ffmpeg
+    errors = []
     for line in p.stdout:
-        key, _, val = line.strip().partition("=")
+        key, sep, val = line.strip().partition("=")
         if key == "out_time_us" and val.isdigit():
             on_progress(min(int(val) / 1e6 / duration, 1.0))
-    err = p.stderr.read()
+        elif not sep or " " in key:  # progress lines are bare key=value, anything else is a log message
+            errors.append(line.strip())
     if p.wait():
-        raise RuntimeError(err.strip()[-600:] or "ffmpeg failed")
+        raise RuntimeError("\n".join(errors)[-600:] or "ffmpeg failed")
 
 
 def output_path(src, ext):
@@ -116,6 +119,12 @@ def compress(src, start, end, target_mb, mute, src_bitrate, on_progress=lambda f
     video, audio = plan_bitrates(target_mb, duration, mute, src_bitrate)
     if video < 40_000:
         raise ValueError(f"{duration:.0f}s is too long to fit in {target_mb:g} MB, trim it shorter")
+    if src_bitrate and src_bitrate * duration / 8 <= (target_mb - 1) * MIB:
+        # already fits: forcing x264 to a bitrate the video can't use makes 2-pass fail to converge
+        out = trim_only(src, start, end, mute, on_progress)
+        if os.path.getsize(out) <= target_mb * MIB:
+            return out
+        os.remove(out)
     out = output_path(src, ".mp4")
     log = os.path.join(tempfile.gettempdir(), "mazvid_2pass")
     audio_args = ["-an"] if mute else ["-c:a", "aac", "-b:a", str(audio)]
