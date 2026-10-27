@@ -131,7 +131,10 @@ def compress(src, start, end, target_mb, mute, src_bitrate, on_progress=lambda f
     for _ in range(3):
         common = [*cut(src, start, end), "-vf", f"scale=-2:'min(ih,{max_height(video)})'",
                   "-c:v", "libx264", "-preset", "medium", "-b:v", str(video), "-pix_fmt", "yuv420p",
-                  "-passlogfile", log]
+                  "-passlogfile", log,
+                  # the null and mp4 outputs default to different frame timing, so on variable-framerate
+                  # clips pass 2 would get duplicated frames pass 1 never saw ("Incomplete MB-tree stats file")
+                  "-fps_mode", "passthrough"]
         run_ffmpeg([*common, "-pass", "1", "-an", "-f", "null", os.devnull], duration, lambda f: on_progress(f / 2))
         run_ffmpeg([*common, "-pass", "2", *audio_args, "-movflags", "+faststart", out], duration,
                    lambda f: on_progress(0.5 + f / 2))
